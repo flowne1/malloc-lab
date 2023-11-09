@@ -9,6 +9,8 @@
  * NOTE TO STUDENTS: Replace this header comment with your own header
  * comment that gives a high level description of your solution.
  */
+
+// 수정 테스트
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
