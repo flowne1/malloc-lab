@@ -61,6 +61,7 @@ team_t team = {
 // 추가로 필요한 함수를 정의한다
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
+void *first_fit(size_t alloc_size);
 
 // 추가로 필요한 변수를 정의한다
 
