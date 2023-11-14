@@ -67,6 +67,7 @@ void *first_fit(size_t alloc_size);
 // 추가로 필요한 변수를 정의한다
 static char *heap_listp;
 
+// 힙을 확장. 인자를 word단위로 받아야함
 static void *extend_heap(size_t words){
     char *bp;
     size_t size;
@@ -85,6 +86,7 @@ static void *extend_heap(size_t words){
     return coalesce(bp);
 }
 
+// 앞뒤의 가용 메모리를 병합
 static void *coalesce(void *bp){
     // 앞 블록이 사용 가능하면 병합한다
     char* bp_prev = PREV_BLKP(bp);
@@ -138,10 +140,9 @@ void *first_fit(size_t alloc_size){
         // 조건을 만족하지 못하면 다음 블록으로 넘어간다
         bp = NEXT_BLKP(bp);
     }
-    // 못찾았으면 void*(-1)을 반환한다
-    return (void*)-1;
+    // 못찾았으면 NULL을 반환한다
+    return NULL;
 }
-
 
 // 메모리를 할당하고 포인터를 반환한다
 void *mm_malloc(size_t size){
@@ -150,13 +151,16 @@ void *mm_malloc(size_t size){
     // first fit : 힙의 처음부터 끝까지 스프린트 하면서 가능한 공간을 찾는다
     char *bp = first_fit(new_size);
     // 가용 메모리가 부족하면 힙을 확장한다
-    if (bp == (void*)-1){
+    if (bp == NULL){
         bp = extend_heap(new_size/WSIZE); // 여기 확장하는 사이즈 나중에 다시 볼것!
+        if (bp == (void*)-1){
+            return NULL;
+        }
     }
+
     // bp를 기준으로 할당처리를한다
     size_t block_size = GET_SIZE(HDRP(bp));
     size_t remain_size = block_size - new_size; // 여기 데이터 타입이 size_t가 맞을까..?
-
     // 남는 블록이 16바이트이상(헤더,풋터 포함 데이터를 가질 수 있는 최소값)이면 block_size를 분할한다
     if (remain_size >= 16){
         // 할당하는 블록의 정보를 갱신한다
@@ -190,36 +194,38 @@ void mm_free(void *bp){
     return;
 }
 
-/*
- * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
- */
-void *mm_realloc(void *ptr, size_t size)
+// bp 및 재할당 사이즈를 받고, 재할당&데이터복사 후에 해당 bp를 반환한다
+void *mm_realloc(void *bp, size_t realloc_size)
 {
-    void *oldptr = ptr;
-    void *newptr;
-    size_t copySize;
-    
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
+    size_t block_size = GET_SIZE(HDRP(bp));
+    size_t realloc_size_aligned = ALIGN(realloc_size + SIZE_T_SIZE);
+    size_t remain_size = block_size - realloc_size_aligned;
+    // 기존 공간이 더 크면 추가로 할당하지 않고 그냥 그대로 사용한다
+    if (block_size >= realloc_size_aligned){
+        // 남는 블록이 16바이트 이상이면 분할하고, 16바이트 미만이면 아무 처리도 하지 않고 그대로 반환한다
+        if (remain_size >= 16){
+            // 할당하는 블록의 정보를 갱신한다
+            PUT(HDRP(bp), PACK(realloc_size_aligned,1));
+            PUT(FTRP(bp), PACK(realloc_size_aligned,1));
+            // 남은 블록의 정보를 갱신한다
+            void *bp_next = NEXT_BLKP(bp);
+            PUT(HDRP(bp_next), PACK(remain_size, 0));
+            PUT(FTRP(bp_next), PACK(remain_size, 0));
+        }
+        // 포인터를 반환한다
+        return bp;
+    }else{
+        char *new_bp = mm_malloc(realloc_size);
+        if (new_bp == NULL)
+            return NULL;
+        // 데이터 크기를 구하고 memcpy를 통해 카피한다. 헤더, 풋터 제외함(2*WSIZE)
+        size_t copy_size = GET_SIZE(HDRP(bp)) - 2*WSIZE; 
+        if (realloc_size < copy_size){
+            copy_size = realloc_size; // 재할당 사이즈가 기존 데이터 사이즈보다 작으면 재할당 사이즈크기만큼만 복사한다
+        }
+        memcpy(new_bp, bp, copy_size);
+        // 기존 메모리는 할당 해제하고 new_bp를 반환한다
+        mm_free(bp);
+        return new_bp;
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
