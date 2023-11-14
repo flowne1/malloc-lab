@@ -151,21 +151,25 @@ void *mm_malloc(size_t size){
     char *bp = first_fit(new_size);
     // 가용 메모리가 부족하면 힙을 확장한다
     if (bp == (void*)-1){
-        printf("\n확장중!\n");
         bp = extend_heap(new_size/WSIZE); // 여기 확장하는 사이즈 나중에 다시 볼것!
     }
     // bp를 기준으로 할당처리를한다
-    size_t remain_size = GET_SIZE(HDRP(bp)) - new_size; // 여기 데이터 타입이 size_t가 맞을까..?
-    printf("\ngetsize : %zu, new_size : %zu \n", GET_SIZE(HDRP(bp)), new_size);
-    printf("bp : %p, hdrp : %p, remain_size : %zu\n", bp, HDRP(bp), remain_size);
-    // 헤더, 풋터에 할당, 사이즈 정보를 넣는다
-    PUT(HDRP(bp), PACK(new_size, 1));
-    PUT(FTRP(bp), PACK(new_size, 1));
-    // 남는 블록이 16바이트이상(헤더,풋터 포함 데이터를 가질 수 있는 최소값)이면 헤더, 풋터에 할당, 사이즈 정보를 넣는다
+    size_t block_size = GET_SIZE(HDRP(bp));
+    size_t remain_size = block_size - new_size; // 여기 데이터 타입이 size_t가 맞을까..?
+
+    // 남는 블록이 16바이트이상(헤더,풋터 포함 데이터를 가질 수 있는 최소값)이면 block_size를 분할한다
     if (remain_size >= 16){
+        // 할당하는 블록의 정보를 갱신한다
+        PUT(HDRP(bp), PACK(new_size,1));
+        PUT(FTRP(bp), PACK(new_size,1));
+        // 남은 블록의 정보를 갱신한다
         void *bp_next = NEXT_BLKP(bp);
         PUT(HDRP(bp_next), PACK(remain_size, 0));
         PUT(FTRP(bp_next), PACK(remain_size, 0));
+    // 남는 블록이 16바이트미만인 경우, 남는 블록까지 합쳐서 전체를 다 사용한다
+    }else{
+        PUT(HDRP(bp), PACK(block_size,1));
+        PUT(FTRP(bp), PACK(block_size,1));        
     }
     // 포인터를 반환한다
     return bp;
