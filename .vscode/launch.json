@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/mdriver",
-            "args": ["-f", "traces/realloc-bal.rep"],
+            "args": ["-f", "short2-bal.rep"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
@@ -33,3 +33,4 @@
 
     ]
 }
+
